@@ -32,6 +32,7 @@ else()
     CMAKE_ARGS
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     -DgRPC_BUILD_TESTS:BOOL=OFF
+    -DgRPC_PROTOBUF_PROVIDER=package
     -DBUILD_SHARED_LIBS:BOOL=OFF
 
     # TODO(rsgowman): We're currently building nanopb twice; once via grpc, and
@@ -74,6 +75,8 @@ else()
 
   ExternalProject_Add(
     grpc
+    DEPENDS
+      protobuf
 
     ${GRPC_GIT}
 
