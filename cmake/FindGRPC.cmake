@@ -13,63 +13,58 @@
 # limitations under the License.
 
 include(FindPackageHandleStandardArgs)
-include(FindZLIB)
 
 set(BINARY_DIR ${FIREBASE_BINARY_DIR}/external/grpc)
 
-## ZLIB
 
-# the grpc ExternalProject already figures out if zlib should be built or
-# referenced from its installed location. If it elected to allow grpc to build
-# zlib then it will be available at this location.
-find_library(
-  ZLIB_LIBRARY
-  NAMES z
-  HINTS ${BINARY_DIR}/src/grpc-build/third_party/zlib
-)
-
-# If found above, the standard package will honor the ZLIB_LIBRARY variable.
+## zlib
 find_package(ZLIB REQUIRED)
 
 
 ## BoringSSL/OpenSSL
 
-find_path(
-  OPENSSL_INCLUDE_DIR openssl/ssl.h
-  HINTS ${BINARY_DIR}/src/grpc/third_party/boringssl/include
-)
+# If the user supplies a previously installed OpenSSL (via -DOPENSSL_ROOT_DIR)
+# then FindOpenSSL will find it and set things up correctly.
+#
+# If not, we're using the BoringSSL supplied by gRPC and this doesn't play
+# nicely:
+#
+#   * BoringSSL does not install, so results have to be picked out of the build
+#     tree.
+#   * BoringSSL does not name libraries in a way that FindOpenSSL expects.
+#
+# So, attempt to find OpenSSL via find_package and if not found just assume
+# we're getting SSL from the build tree.
 
-find_library(
-  OPENSSL_SSL_LIBRARY
-  NAMES ssl
-  HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/ssl
-)
+find_package(OpenSSL)
+if(NOT OPENSSL_FOUND)
+  find_path(
+    OPENSSL_INCLUDE_DIR openssl/ssl.h
+    HINTS ${BINARY_DIR}/src/grpc-download/third_party/boringssl/include
+  )
 
-find_library(
-  OPENSSL_CRYPTO_LIBRARY
-  NAMES crypto
-  HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/crypto
-)
+  find_library(
+    OPENSSL_SSL_LIBRARY
+    NAMES ssl
+    HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/ssl
+    HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/ssl/Debug
+    HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/ssl/Release
+  )
 
-find_package(OpenSSL REQUIRED)
+  find_library(
+    OPENSSL_CRYPTO_LIBRARY
+    NAMES crypto
+    HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/crypto
+    HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/crypto/Debug
+    HINTS ${BINARY_DIR}/src/grpc-build/third_party/boringssl/crypto/Release
+  )
+endif()
 
 
 ## C-Ares
-
-find_library(
-  CARES_LIBRARY
-  NAMES cares
-  HINTS ${BINARY_DIR}/src/grpc-build/third_party/cares/cares/lib
-)
-if(NOT (CARES_LIBRARY STREQUAL "CARES_LIBRARY-NOTFOUND"))
-  if (NOT TARGET c-ares::ares)
-    add_library(c-ares::ares UNKNOWN IMPORTED)
-    set_target_properties(
-      c-ares::ares PROPERTIES
-      IMPORTED_LOCATION ${CARES_LIBRARY}
-    )
-  endif()
-endif()
+message("c-ares_DIR ${FIREBASE_INSTALL_DIR}/lib/cmake/c-ares")
+set(c-ares_DIR ${FIREBASE_INSTALL_DIR}/lib/cmake/c-ares)
+find_package(c-ares CONFIG REQUIRED)
 
 
 ## GRPC
@@ -79,7 +74,7 @@ find_path(
   HINTS
     $ENV{GRPC_ROOT}/include
     ${GRPC_ROOT}/include
-    ${BINARY_DIR}/src/grpc/include
+    ${BINARY_DIR}/src/grpc-download/include
 )
 
 find_library(
@@ -124,7 +119,7 @@ if(GRPC_FOUND)
   if (NOT TARGET grpc::grpc)
     set(
       GRPC_LINK_LIBRARIES
-      c-ares::ares
+      c-ares::cares
       grpc::gpr
       OpenSSL::SSL
       OpenSSL::Crypto
