@@ -45,9 +45,6 @@
 }
 
 - (void)enqueueWithData:(nullable NSData *)resumeData {
-  NSAssert([NSThread isMainThread],
-           @"Download attempting to execute on non main queue! Please "
-           @"only execute this method on the main queue.");
   self.state = FIRStorageTaskStateQueueing;
   NSMutableURLRequest *request = [self.baseRequest mutableCopy];
   request.HTTPMethod = @"GET";
@@ -147,9 +144,6 @@
 }
 
 - (void)cancelWithError:(NSError *)error {
-  NSAssert([NSThread isMainThread],
-           @"Cancel attempting to execute on non main queue! Please only "
-           @"execute this method on the main queue.");
   self.state = FIRStorageTaskStateCancelled;
   [self.fetcher stopFetching];
   self.error = error;
@@ -170,9 +164,6 @@
 }
 
 - (void)resume {
-  NSAssert([NSThread isMainThread],
-           @"Resume attempting to execute on non main queue! Please only "
-           @"execute this method on the main queue.");
   self.state = FIRStorageTaskStateResuming;
   FIRStorageTaskSnapshot *snapshot = self.snapshot;
   [self fireHandlersForStatus:FIRStorageTaskStatusResume snapshot:snapshot];
